@@ -1,0 +1,9 @@
+query NearbyStations($latitude: Float!, $longitude: Float!) {
+  nearbyStations(latitude: $latitude, longitude: $longitude) {
+    id
+    name
+    distance
+    latitude
+    longitude
+  }
+}

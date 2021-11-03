@@ -1,7 +1,9 @@
+mod graphql;
+mod pages;
+
+use pages::home::Home;
 use yew::prelude::*;
 use yew_router::prelude::*;
-mod pages;
-use pages::home::Home;
 
 #[derive(Switch, Debug, Clone)]
 pub enum AppRoute {

@@ -10,6 +10,10 @@ yew = "0.18"
 yew-router = "0.15.0"
 wasm-bindgen = {version = "0.2", features = ["serde-serialize"]}
 js-sys = "0.3"
+graphql_client = {version = "0.10.0", features = ["reqwest"]}
+serde = {version = "1.0.130", features = ["derive"]}
+reqwest = "0.11.6"
+wasm-bindgen-futures = "0.4.28"
 
 [dependencies.web-sys]
 version = "0.3"

@@ -1,8 +1,9 @@
 use wasm_bindgen::prelude::*;
-use web_sys::Geolocation;
 use yew::prelude::*;
 
+use crate::graphql::prelude::*;
 use wasm_bindgen::JsCast;
+use web_sys::Geolocation;
 
 #[wasm_bindgen]
 extern "C" {
@@ -25,13 +26,25 @@ type Longitude = f64;
 
 pub enum HomeMsg {
     GotLocation(Latitude, Longitude),
+    GotStation(Option<graphql_client::Response<nearby_stations::ResponseData>>),
     GotError(JsValue),
+}
+
+async fn discover(
+    latitude: f64,
+    longitude: f64,
+) -> Result<graphql_client::Response<nearby_stations::ResponseData>, wasm_bindgen::JsValue> {
+    load_nearby_stations(latitude, longitude).await
+}
+
+async fn wrap<F: std::future::Future>(f: F, done_cb: yew::Callback<F::Output>) {
+    done_cb.emit(f.await);
 }
 
 pub struct Home {
     link: ComponentLink<Self>,
     location_error: Option<JsValue>,
-    coordinates: Option<(Latitude, Longitude)>,
+    station: Option<nearby_stations::ResponseData>,
 }
 impl Component for Home {
     type Message = HomeMsg;
@@ -41,14 +54,32 @@ impl Component for Home {
         Self {
             link,
             location_error: None,
-            coordinates: None,
+            station: None,
         }
     }
 
     fn update(&mut self, msg: Self::Message) -> ShouldRender {
         match msg {
             HomeMsg::GotLocation(latitude, longitude) => {
-                self.coordinates = Some((latitude, longitude));
+                wasm_bindgen_futures::spawn_local(wrap(
+                    discover(latitude, longitude),
+                    self.link.callback(
+                        |e: Result<
+                            graphql_client::Response<nearby_stations::ResponseData>,
+                            wasm_bindgen::JsValue,
+                        >| match e {
+                            Ok(r) => HomeMsg::GotStation(Some(r)),
+                            Err(err) => HomeMsg::GotError(err.unchecked_into()),
+                        },
+                    ),
+                ));
+                false
+            }
+            HomeMsg::GotStation(station) => {
+                if let Some(s) = station {
+                    let json: nearby_stations::ResponseData = s.data.expect("message");
+                    self.station = Some(json);
+                }
                 true
             }
             HomeMsg::GotError(err) => {
@@ -115,7 +146,7 @@ impl Home {
     }
     fn view_error_text(&self) -> Html {
         let error_text = match &self.location_error {
-            Some(_) => "Location Error",
+            Some(_) => "An error occurred!",
             None => "",
         };
         html! {
@@ -123,12 +154,26 @@ impl Home {
         }
     }
     fn view_location(&self) -> Html {
-        let coords_text = match &self.coordinates {
-            Some(coords) => format!("{}, {}", coords.0, coords.1),
-            None => "".to_string(),
-        };
-        html! {
-            <b>{ coords_text }</b>
+        if let Some(s) = &self.station {
+            let first = s
+                .nearby_stations
+                .as_ref()
+                .expect("message")
+                .first()
+                .expect("message");
+
+            if let Some(data) = first {
+                let name = data.name.as_ref().expect("message");
+                html! {<h2>{name}</h2>}
+            } else {
+                html! {<h2>{"Error!"}</h2>}
+            }
+        } else {
+            if self.location_error.is_none() {
+                html! {<h2>{"Loading..."}</h2>}
+            } else {
+                html! {}
+            }
         }
     }
 }
