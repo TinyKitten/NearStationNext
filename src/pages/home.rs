@@ -77,7 +77,7 @@ impl Component for Home {
             }
             HomeMsg::GotStation(station) => {
                 if let Some(s) = station {
-                    let json: nearby_stations::ResponseData = s.data.expect("message");
+                    let json: nearby_stations::ResponseData = s.data.unwrap();
                     self.station = Some(json);
                 }
                 true
@@ -104,7 +104,6 @@ impl Component for Home {
     fn view(&self) -> Html {
         html! {
             <div>
-                <h1>{"Home"}</h1>
                 {self.view_error_text()}
                 {self.view_location()}
             </div>
@@ -145,35 +144,29 @@ impl Home {
         error_cb.forget();
     }
     fn view_error_text(&self) -> Html {
-        let error_text = match &self.location_error {
-            Some(_) => "An error occurred!",
-            None => "",
-        };
-        html! {
-            <b>{ error_text }</b>
+        if let Some(_) = &self.location_error {
+            return html! {
+                <b>{"An error occurred!"}</b>
+            };
         }
+        html! {}
     }
     fn view_location(&self) -> Html {
         if let Some(s) = &self.station {
-            let first = s
-                .nearby_stations
-                .as_ref()
-                .expect("message")
-                .first()
-                .expect("message");
+            let first = s.nearby_stations.as_ref().unwrap().first().unwrap();
 
             if let Some(data) = first {
-                let name = data.name.as_ref().expect("message");
-                html! {<h2>{name}</h2>}
-            } else {
-                html! {<h2>{"Error!"}</h2>}
+                let name = data.name.as_ref().unwrap();
+                return html! {<h2>{name}</h2>};
             }
         } else {
             if self.location_error.is_none() {
-                html! {<h2>{"Loading..."}</h2>}
-            } else {
-                html! {}
+                return self.view_loading();
             }
         }
+        html! {}
+    }
+    fn view_loading(&self) -> Html {
+        html! {<h2>{"Loading..."}</h2>}
     }
 }
